@@ -17,6 +17,9 @@ To access firestore in the function environemnt, we need to configure
 	  "key": string (the private key)
 	}
 
-you can generate our config using
+Firebase stores its environment on localhost in a .runtimeconfig.json which should not be versioned in git for safety and security reasons. Instead, if you want to start developing you will need to ask an admin for a private key to access firestore from the function or if you are the admin, generate a new private key using the firebase console and store them in the respective file. 
 
-    firebase functions:config:get > .runtimeconfig.json
+	firebase functions:config:get > .runtimeconfig.json
+
+
+For more information visit: https://firebase.google.com/docs/functions/config-env
