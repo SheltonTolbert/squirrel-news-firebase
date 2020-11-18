@@ -9,7 +9,7 @@ We are using Firebase as our Application Cloud Backend. So far we are using
 
 ### Runtime Environment for Functions
 
-To access firestore in the function environemnt, we configured
+To access firestore in the function environemnt, we need to configure
 
 	"service_acc": {
 	  "clientemail" :string
