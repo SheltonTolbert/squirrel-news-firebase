@@ -44,14 +44,15 @@ function ISO8601_week_no(dt: Date) {
   return 1 + Math.ceil((firstThursday - tdt.getTime()) / 604800000);
 }
 
-const checkToken = async (token: any ): Promise<boolean> => {
-  const queryToken = await admin.firestore().collection('access-tokens').doc('sheet').get();
+const checkToken = async (token: any, type: 'sheet' | 'awtrix' ): Promise<boolean> => {
+  const queryToken = await admin.firestore().collection('access-tokens').doc(type).get();
   return queryToken.get('token') === token ? true : false;
 }
 
 
+
 export const createNewIssue = functions.https.onRequest(async (request, response) => {
-  const tokenAccepted = await checkToken(request.headers['token']);
+  const tokenAccepted = await checkToken(request.headers['token'], 'sheet');
   if ( request.method === 'POST' && tokenAccepted) {
     if ( request.body.title === undefined || request.body.title === null) {
       response.status(400).send('Required title is not valid please check your request');
@@ -106,7 +107,7 @@ export const createNewIssue = functions.https.onRequest(async (request, response
 });
 
 export const deleteArticle = functions.https.onRequest( async (request, response) => {
-  const tokenAccepted = await checkToken(request.headers['token']);
+  const tokenAccepted = await checkToken(request.headers['token'], 'sheet');
   if (request.method === 'DELETE' && tokenAccepted) {
     // we need issue id and article id
     if (!request.body.issueId || !request.body.articleId) {
@@ -131,7 +132,7 @@ export const deleteArticle = functions.https.onRequest( async (request, response
 })
 
 export const getArticle = functions.https.onRequest( async (request, response) => {
-  const tokenAccepted = await checkToken(request.headers['token']);
+  const tokenAccepted = await checkToken(request.headers['token'], 'sheet');
   if ( request.method === 'GET' && tokenAccepted) {
     
     // console.log(collections);
@@ -141,7 +142,7 @@ export const getArticle = functions.https.onRequest( async (request, response) =
 });
 
 export const addArticleToIssue = functions.https.onRequest(async (request, response) => {
-  const tokenAccepted = await checkToken(request.headers['token']);
+  const tokenAccepted = await checkToken(request.headers['token'], 'sheet');
   if (request.method === 'PATCH' && tokenAccepted ) {
 
     const element = {
@@ -179,7 +180,7 @@ export const addArticleToIssue = functions.https.onRequest(async (request, respo
 
 export const publishArticle = functions.https.onRequest( async (request, response) => {
 
-  const tokenAccepted = checkToken(request.headers.token);
+  const tokenAccepted = checkToken(request.headers.token, 'sheet');
 
   if (request.method === 'PATCH' && tokenAccepted) {
     const query = await admin.firestore()
@@ -256,7 +257,7 @@ export const publishCurations = functions.https.onRequest(async (request, respon
 
       if (requestBody.dry !== undefined && requestBody.dry) {
         console.log('dryrun')
-          const current = await (await admin.firestore().doc(`news/${requestBody.id}`).get()).data();
+          const current = (await admin.firestore().doc(`news/${requestBody.id}`).get()).data();
           console.log(current);
           if (current !== undefined) {
             current.published = requestBody.action === 'publish' ? true : false;
@@ -274,7 +275,7 @@ export const publishCurations = functions.https.onRequest(async (request, respon
 
       } else {
 
-        const current = await (await admin.firestore().doc(`news/${requestBody.id}`).get()).data();
+        const current = (await admin.firestore().doc(`news/${requestBody.id}`).get()).data();
         if (current !== undefined) {
           current.published = requestBody.action === 'publish' ? true : false;
           
@@ -303,3 +304,32 @@ export const publishCurations = functions.https.onRequest(async (request, respon
   }
 })
 
+/**
+ * returns a subset of data for usage by other clients
+ */
+export const getLatestHeadlines = functions.https.onRequest(async (request, response) => {
+
+  const tokenAccepted =  await checkToken(request.headers.token, 'awtrix')
+  
+  if (request.method === "GET" && tokenAccepted) {
+    console.log('params', request.query.num)
+    const lang = request.query.language ? request.query.language : 'de';
+    const num =  request.query.num ? (request.query.num as string) : '10';
+
+    const latest = await (await admin.firestore().collection('issues').where('language', '==', lang).orderBy('dateCreated', 'desc').limit(1).get()).docs[0];
+    const articles = await (await admin.firestore().doc(`issues/${latest.id}`).collection('articles')
+      .limit(parseInt(num)).get())
+      .docs
+        .map( a => a.data())
+        .map( article => ({ "title": article.tite, "teaser": article.teaser, "origin": article.source }));
+
+    response.status(200).json({
+      "date": latest.data().title,
+      "teaser": latest.data().teaser,
+      "headlines": articles
+    });
+
+  } else {
+    response.status(400).send()
+  }
+})
