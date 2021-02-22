@@ -1,4 +1,4 @@
-# Firebase Cloud Functions and Hostng functionality for Squirrel News
+# Firebase Cloud Functions and Hosting functionality for Squirrel News
 
 ## Firebase (Functions)
 
